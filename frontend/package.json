@@ -2,7 +2,7 @@
   "name": "dashboard",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://airdimitrije.github.io/dashboard/",
+  "homepage": "https://airdimitrije.github.io/ecommerce-dashboard",
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
     "@testing-library/dom": "^10.4.1",
@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
-    "gh-pages": "^6.1.1",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17"
   }

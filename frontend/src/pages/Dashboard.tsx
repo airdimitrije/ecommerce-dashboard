@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react"
+import api from "../services/api"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from "recharts"
 import { 
-  ChevronLeft, ChevronRight, TrendingUp, Package, DollarSign, 
-  ShoppingCart, Filter, X, Search
+  ChevronLeft, ChevronRight, Package, DollarSign, 
+  ShoppingCart, Filter, X
 } from "lucide-react"
 
 interface Product {
@@ -40,6 +41,7 @@ export default function Dashboard() {
   const [inventory, setInventory] = useState<Inventory[]>([])
   const [ordersData, setOrdersData] = useState<{ month: string; orders: number }[]>([])
   const [totalOrders, setTotalOrders] = useState<number>(0)
+  const [totalValue, setTotalValue] = useState<string>("0.00")
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
   
@@ -56,51 +58,48 @@ export default function Dashboard() {
 
   const productsPerPage = 5
 
-  // Mock data since we don't have API
+  // ✅ API pozivi
   useEffect(() => {
-    // Mock products data
-    const mockProducts = [
-      { id: 1, name: "Samsung Galaxy S24", price: "999.99", category: 1 },
-      { id: 2, name: "Sony WH-1000XM5", price: "349.50", category: 1 },
-      { id: 3, name: "Dell XPS 13", price: "1299.00", category: 1 },
-      { id: 4, name: "Apple iPad Pro 12.9", price: "1399.00", category: 1 },
-      { id: 5, name: "Samsung 65\" QLED TV", price: "1899.00", category: 1 },
-      { id: 6, name: "Nike Air Max", price: "129.99", category: 2 },
-      { id: 7, name: "Adidas Ultraboost", price: "180.00", category: 2 },
-      { id: 8, name: "Coffee Machine", price: "299.99", category: 3 },
-    ]
+    // 1. Proizvodi
+    api.get("products/").then((res) => {
+      setProducts(res.data)
+    }).catch(err => console.error(err))
 
-    const mockCategories = [
-      { id: 1, name: "Elektronika" },
-      { id: 2, name: "Odjeća" },
-      { id: 3, name: "Kućanski aparati" }
-    ]
+    // 2. Kategorije
+    api.get("categories/").then((res) => {
+      setCategories(res.data)
+    }).catch(err => console.error(err))
 
-    const mockInventory = [
-      { id: 1, product: 1, quantity_in: 100, quantity_out: 10, status: "available" },
-      { id: 2, product: 2, quantity_in: 50, quantity_out: 30, status: "available" },
-      { id: 3, product: 3, quantity_in: 30, quantity_out: 30, status: "out_of_stock" },
-      { id: 4, product: 4, quantity_in: 120, quantity_out: 10, status: "available" },
-      { id: 5, product: 5, quantity_in: 50, quantity_out: 10, status: "available" },
-      { id: 6, product: 6, quantity_in: 200, quantity_out: 190, status: "low_stock" },
-      { id: 7, product: 7, quantity_in: 150, quantity_out: 100, status: "available" },
-      { id: 8, product: 8, quantity_in: 80, quantity_out: 60, status: "available" },
-    ]
+    // 3. Inventar
+    api.get("inventory/").then((res) => {
+      setInventory(res.data)
+    }).catch(err => console.error(err))
 
-    const mockOrdersData = [
-      { month: "Jan 2024", orders: 45 },
-      { month: "Feb 2024", orders: 52 },
-      { month: "Mar 2024", orders: 38 },
-      { month: "Apr 2024", orders: 61 },
-      { month: "May 2024", orders: 55 },
-      { month: "Jun 2024", orders: 48 },
-    ]
+    // 4. Narudžbe
+    api.get("orders/").then((res) => {
+      setTotalOrders(res.data.length)
 
-    setProducts(mockProducts)
-    setCategories(mockCategories)
-    setInventory(mockInventory)
-    setOrdersData(mockOrdersData)
-    setTotalOrders(mockOrdersData.reduce((sum, item) => sum + item.orders, 0))
+      // Izračun ukupne vrijednosti iz svih items
+      let total = 0
+      res.data.forEach((order: any) => {
+        order.items.forEach((item: any) => {
+          total += parseFloat(item.final_price)
+        })
+      })
+      setTotalValue(total.toFixed(2))
+    }).catch(err => console.error(err))
+
+    // 5. Narudžbe po mjesecima (za grafikone)
+    api.get("orders-by-month/").then((res) => {
+      const formatted = res.data.map((item: OrdersByMonth) => ({
+        month: new Date(item.month).toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        }),
+        orders: item.order_count,
+      }))
+      setOrdersData(formatted)
+    }).catch(err => console.error(err))
   }, [])
 
   // Get inventory status
@@ -190,7 +189,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gray-400 mb-1">Ukupna vrijednost</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {products.reduce((sum, p) => sum + parseFloat(p.price), 0).toFixed(2)} €
+                  {totalValue} €
                 </p>
               </div>
               <DollarSign className="w-8 h-8 text-yellow-500/60" />
@@ -293,10 +292,10 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Filter Controls */}
+          {/* Filter Controls - Desktop */}
           {showFilters && (
             <div className="p-6 border-b border-yellow-500/30 bg-gray-900/50">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Naziv proizvoda</label>
                   <input
@@ -388,15 +387,100 @@ export default function Dashboard() {
                   </button>
                 </div>
               </div>
+
+              {/* Filter Controls - Mobile */}
+              <div className="md:hidden space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Naziv proizvoda</label>
+                    <input
+                      type="text"
+                      value={filters.name}
+                      onChange={(e) => setFilters({...filters, name: e.target.value})}
+                      placeholder="Pretraži po nazivu..."
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Min. cijena</label>
+                      <input
+                        type="number"
+                        value={filters.priceMin}
+                        onChange={(e) => setFilters({...filters, priceMin: e.target.value})}
+                        placeholder="0"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Max. cijena</label>
+                      <input
+                        type="number"
+                        value={filters.priceMax}
+                        onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
+                        placeholder="9999"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Status</label>
+                    <select
+                      value={filters.status}
+                      onChange={(e) => setFilters({...filters, status: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none"
+                    >
+                      <option value="">Svi statusi</option>
+                      <option value="available">Dostupno</option>
+                      <option value="low_stock">Niska zaliha</option>
+                      <option value="out_of_stock">Nema na lageru</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Min. količina</label>
+                      <input
+                        type="number"
+                        value={filters.quantityMin}
+                        onChange={(e) => setFilters({...filters, quantityMin: e.target.value})}
+                        placeholder="0"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Max. količina</label>
+                      <input
+                        type="number"
+                        value={filters.quantityMax}
+                        onChange={(e) => setFilters({...filters, quantityMax: e.target.value})}
+                        placeholder="999"
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={clearFilters}
+                    disabled={!hasActiveFilters}
+                    className="w-full px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Očisti filtere
+                  </button>
+                </div>
+              </div>
               
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-gray-400 mt-4">
                 Prikazano: {filteredProducts.length} od {products.length} proizvoda
               </div>
             </div>
           )}
 
-          {/* Products Table */}
-          <div className="overflow-auto">
+          {/* Products Table - Desktop */}
+          <div className="hidden md:block overflow-auto">
             <table className="w-full text-left">
               <thead className="border-b border-yellow-500/30">
                 <tr>
@@ -437,6 +521,51 @@ export default function Dashboard() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Products Cards - Mobile */}
+          <div className="md:hidden space-y-4">
+            {currentProducts.map((product) => {
+              const invData = getInventoryStatus(product.id)
+              return (
+                <div key={product.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-yellow-400 font-medium text-sm">#{product.id}</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          invData.status === 'available' ? 'bg-green-500/20 text-green-400' :
+                          invData.status === 'low_stock' ? 'bg-yellow-500/20 text-yellow-400' :
+                          invData.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400' :
+                          'bg-gray-500/20 text-gray-400'
+                        }`}>
+                          {invData.status === 'available' ? 'Dostupno' :
+                           invData.status === 'low_stock' ? 'Niska zaliha' :
+                           invData.status === 'out_of_stock' ? 'Nema na lageru' : 'N/A'}
+                        </span>
+                      </div>
+                      <h4 className="text-white font-medium text-lg leading-tight mb-2">{product.name}</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400 block">Cijena</span>
+                          <span className="text-yellow-400 font-semibold text-lg">{product.price} €</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">Količina</span>
+                          <span className="text-white font-medium">{invData.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <span className="text-gray-400 text-sm">Kategorija: </span>
+                        <span className="text-gray-300 text-sm">
+                          {categories.find(c => c.id === product.category)?.name || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Pagination */}
