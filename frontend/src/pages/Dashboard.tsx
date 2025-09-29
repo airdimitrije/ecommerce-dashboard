@@ -2,19 +2,19 @@ import React, { useEffect, useState } from "react"
 import api from "../services/api"
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend
+  BarChart, Bar, PieChart, Pie, Cell, Legend, AreaChart, Area
 } from "recharts"
 import { 
-  ChevronLeft, ChevronRight, Package, DollarSign, 
-  ShoppingCart, Filter, X
+  Package, DollarSign, ShoppingCart, Target, 
+  BarChart3, Archive, FileText, ArrowRight, TrendingUp
 } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 interface Product {
   id: number
   name: string
   price: string
   category: number
-  category_name?: string
 }
 
 interface Category {
@@ -42,54 +42,83 @@ export default function Dashboard() {
   const [ordersData, setOrdersData] = useState<{ month: string; orders: number }[]>([])
   const [totalOrders, setTotalOrders] = useState<number>(0)
   const [totalValue, setTotalValue] = useState<string>("0.00")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [showFilters, setShowFilters] = useState(false)
   
-  // Filter states
-  const [filters, setFilters] = useState({
-    name: '',
-    category: '',
-    priceMin: '',
-    priceMax: '',
-    status: '',
-    quantityMin: '',
-    quantityMax: ''
-  })
+  // Dashboard specific data
+  const [recentTrend, setRecentTrend] = useState<{ month: string; revenue: number }[]>([])
+  const [topCategories, setTopCategories] = useState<{ category: string; count: number }[]>([])
+  const [lowStockCount, setLowStockCount] = useState<number>(0)
 
-  const productsPerPage = 5
+  const navigate = useNavigate()
+  const navigateTo = (page: string) => {
+    navigate(`/${page}`)
+  }
 
-  // ✅ API pozivi
+  // API pozivi za podatke
   useEffect(() => {
-    // 1. Proizvodi
+    // Proizvodi
     api.get("products/").then((res) => {
       setProducts(res.data)
     }).catch(err => console.error(err))
 
-    // 2. Kategorije
+    // Kategorije
     api.get("categories/").then((res) => {
       setCategories(res.data)
     }).catch(err => console.error(err))
 
-    // 3. Inventar
+    // Inventar
     api.get("inventory/").then((res) => {
       setInventory(res.data)
+
+      // Broj proizvoda sa niskim zalihama
+      const lowStock = res.data.filter((inv: Inventory) => inv.status === "out_of_stock").length
+      setLowStockCount(lowStock)
     }).catch(err => console.error(err))
 
-    // 4. Narudžbe
+    // Narudžbe
     api.get("orders/").then((res) => {
       setTotalOrders(res.data.length)
 
-      // Izračun ukupne vrijednosti iz svih items
       let total = 0
+      const monthlyRevenue: Record<string, number> = {}
+      const categoryCount: Record<string, number> = {}
+
       res.data.forEach((order: any) => {
+        const month = new Date(order.time_created).toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        })
+
         order.items.forEach((item: any) => {
-          total += parseFloat(item.final_price)
+          const itemTotal = parseFloat(item.final_price)
+          total += itemTotal
+          monthlyRevenue[month] = (monthlyRevenue[month] || 0) + itemTotal
+
+          // Traženje kategorije preko product_name
+          const product = products.find((p) => p.name === item.product_name)
+          if (product) {
+            const category = categories.find((c) => c.id === product.category)?.name || "Ostalo"
+            categoryCount[category] = (categoryCount[category] || 0) + item.quantity
+          }
         })
       })
+
       setTotalValue(total.toFixed(2))
+
+      // Trend prihoda (poslednjih 6 mjeseci)
+      const recentRevenue = Object.entries(monthlyRevenue)
+        .map(([month, revenue]) => ({ month, revenue }))
+        .slice(-6)
+      setRecentTrend(recentRevenue)
+
+      // Top 5 kategorija
+      const topCats = Object.entries(categoryCount)
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5)
+      setTopCategories(topCats)
     }).catch(err => console.error(err))
 
-    // 5. Narudžbe po mjesecima (za grafikone)
+    // Narudžbe po mjesecima
     api.get("orders-by-month/").then((res) => {
       const formatted = res.data.map((item: OrdersByMonth) => ({
         month: new Date(item.month).toLocaleString("default", {
@@ -97,68 +126,12 @@ export default function Dashboard() {
           year: "numeric",
         }),
         orders: item.order_count,
-      }))
+      })).slice(-6)
       setOrdersData(formatted)
     }).catch(err => console.error(err))
-  }, [])
+  }, [products, categories])
 
-  // Get inventory status
-  const getInventoryStatus = (productId: number) => {
-    const inv = inventory.find(i => i.product === productId)
-    if (!inv) return { quantity: 0, status: 'N/A' }
-    const quantity = inv.quantity_in - inv.quantity_out
-    return { quantity, status: inv.status }
-  }
-
-  // Apply filters
-  const filteredProducts = products.filter(product => {
-    const invData = getInventoryStatus(product.id)
-    const price = parseFloat(product.price)
-    
-    return (
-      (!filters.name || product.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-      (!filters.category || categories.find(c => c.id === product.category)?.name.toLowerCase().includes(filters.category.toLowerCase())) &&
-      (!filters.priceMin || price >= parseFloat(filters.priceMin)) &&
-      (!filters.priceMax || price <= parseFloat(filters.priceMax)) &&
-      (!filters.status || invData.status === filters.status) &&
-      (!filters.quantityMin || invData.quantity >= parseInt(filters.quantityMin)) &&
-      (!filters.quantityMax || invData.quantity <= parseInt(filters.quantityMax))
-    )
-  })
-
-  // Pagination
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(filteredProducts.length / productsPerPage)
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filters])
-
-  // Clear filters
-  const clearFilters = () => {
-    setFilters({
-      name: '',
-      category: '',
-      priceMin: '',
-      priceMax: '',
-      status: '',
-      quantityMin: '',
-      quantityMax: ''
-    })
-  }
-
-  // Data for pie chart
-  const categoryData = categories.map(cat => ({
-    category: cat.name,
-    count: products.filter(p => p.category === cat.id).length
-  })).filter(item => item.count > 0)
-
-  const COLORS = ["#EAB308", "#F59E0B", "#FBBF24", "#FCD34D"]
-
-  const hasActiveFilters = Object.values(filters).some(filter => filter !== '')
+  const COLORS = ["#EAB308", "#F59E0B", "#FBBF24", "#FCD34D", "#84CC16"]
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-900 via-black to-gray-900 p-6">
@@ -169,12 +142,12 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 bg-clip-text text-transparent">
             Poslovni Dashboard
           </h1>
-          <p className="text-gray-400 text-lg">Pregled proizvoda, kategorija i narudžbi</p>
+          <p className="text-gray-400 text-lg">Pregled ključnih pokazatelja performansi</p>
         </div>
 
-        {/* Stats Cards - Improved */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
+        {/* Main Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Ukupno proizvoda</p>
@@ -184,19 +157,17 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
+          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Ukupna vrijednost</p>
-                <p className="text-3xl font-bold text-yellow-400">
-                  {totalValue} €
-                </p>
+                <p className="text-sm text-gray-400 mb-1">Ukupni prihod</p>
+                <p className="text-3xl font-bold text-yellow-400">{totalValue} €</p>
               </div>
               <DollarSign className="w-8 h-8 text-yellow-500/60" />
             </div>
           </div>
           
-          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
+          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Ukupne narudžbe</p>
@@ -205,400 +176,137 @@ export default function Dashboard() {
               <ShoppingCart className="w-8 h-8 text-yellow-500/60" />
             </div>
           </div>
+
+          <div className="group relative rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 border border-red-500/30 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-1">Niske zalihe</p>
+                <p className="text-3xl font-bold text-red-400">{lowStockCount}</p>
+              </div>
+              <Target className="w-8 h-8 text-red-500/60" />
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Navigation */}
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 rounded-2xl">
+          <h3 className="text-yellow-400 mb-6 text-xl font-semibold flex items-center gap-2">
+            <BarChart3 className="w-6 h-6" />
+            Brza navigacija
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <button 
+              onClick={() => navigateTo("products")}
+              className="group flex items-center justify-between p-4 bg-gray-800/50 border border-gray-600 rounded-lg hover:border-yellow-500/50 hover:bg-gray-700/50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Package className="w-5 h-5 text-yellow-400" />
+                <span className="text-gray-300 group-hover:text-white">Proizvodi</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-yellow-400" />
+            </button>
+
+            <button 
+              onClick={() => navigateTo("inventory")}
+              className="group flex items-center justify-between p-4 bg-gray-800/50 border border-gray-600 rounded-lg hover:border-yellow-500/50 hover:bg-gray-700/50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Archive className="w-5 h-5 text-yellow-400" />
+                <span className="text-gray-300 group-hover:text-white">Inventar</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-yellow-400" />
+            </button>
+
+            <button 
+              onClick={() => navigateTo("orders")}
+              className="group flex items-center justify-between p-4 bg-gray-800/50 border border-gray-600 rounded-lg hover:border-yellow-500/50 hover:bg-gray-700/50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-yellow-400" />
+                <span className="text-gray-300 group-hover:text-white">Narudžbe</span>
+              </div>
+              <ArrowRight className="w-4 h-4 text-gray-500 group-hover:text-yellow-400" />
+            </button>
+          </div>
         </div>
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 rounded-2xl">
-            <h3 className="text-yellow-400 mb-4 text-xl font-semibold">Trend narudžbi</h3>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={ordersData}>
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-6 h-6 text-yellow-400" />
+              <h3 className="text-yellow-400 text-xl font-semibold">Trend prihoda (zadnjih 6 mjeseci)</h3>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={recentTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="month" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" />
                 <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #EAB308',
-                    borderRadius: '8px'
-                  }}
+                  contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #EAB308" }}
+                  formatter={(value) => [`${value}€`, "Prihod"]}
                 />
-                <Line type="monotone" dataKey="orders" stroke="#EAB308" strokeWidth={3} dot={{ fill: '#EAB308', r: 6 }} />
-              </LineChart>
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="#F59E0B" 
+                  fill="url(#revenueGradient)" 
+                  strokeWidth={3} 
+                />
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+              </AreaChart>
             </ResponsiveContainer>
           </div>
-          
+
           <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 rounded-2xl">
-            <h3 className="text-yellow-400 mb-4 text-xl font-semibold">Mjesečne narudžbe</h3>
-            <ResponsiveContainer width="100%" height={250}>
+            <h3 className="text-yellow-400 mb-4 text-xl font-semibold">Narudžbe po mjesecima</h3>
+            <ResponsiveContainer width="100%" height={300}>
               <BarChart data={ordersData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey="month" stroke="#9CA3AF" />
                 <YAxis stroke="#9CA3AF" />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: '#1F2937',
-                    border: '1px solid #EAB308',
-                    borderRadius: '8px'
-                  }}
+                <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #EAB308" }} />
+                <Bar 
+                  dataKey="orders" 
+                  fill="url(#ordersGradient)" 
+                  radius={[8, 8, 0, 0]} 
                 />
-                <Bar dataKey="orders" fill="#EAB308" radius={[8, 8, 0, 0]} />
+                <defs>
+                  <linearGradient id="ordersGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EAB308" stopOpacity={1}/>
+                    <stop offset="95%" stopColor="#EAB308" stopOpacity={0.6}/>
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Pie Chart */}
         <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 p-6 rounded-2xl">
-          <h3 className="text-yellow-400 mb-4 text-xl font-semibold">Kategorije proizvoda</h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <h3 className="text-yellow-400 mb-4 text-xl font-semibold">Top 5 kategorija po prodaji</h3>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={categoryData} dataKey="count" nameKey="category" outerRadius={90}>
-                {categoryData.map((entry, index) => (
-                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
+              <Pie 
+                data={topCategories} 
+                dataKey="count" 
+                nameKey="category" 
+                outerRadius={120}
+                label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+              >
+                {topCategories.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Legend />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: '#1F2937',
-                  border: '1px solid #EAB308',
-                  borderRadius: '8px'
-                }}
-              />
+              <Tooltip contentStyle={{ backgroundColor: "#1F2937", border: "1px solid #EAB308" }} />
             </PieChart>
           </ResponsiveContainer>
-        </div>
-
-        {/* Filter Section */}
-        <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-yellow-500/30 rounded-2xl overflow-hidden">
-          <div className="p-6 border-b border-yellow-500/30">
-            <div className="flex items-center justify-between">
-              <h3 className="text-yellow-400 text-xl font-semibold">Proizvodi</h3>
-              <div className="flex items-center gap-3">
-                {hasActiveFilters && (
-                  <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full">
-                    {Object.values(filters).filter(f => f !== '').length} filtera aktivno
-                  </span>
-                )}
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-all"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filteri
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Controls - Desktop */}
-          {showFilters && (
-            <div className="p-6 border-b border-yellow-500/30 bg-gray-900/50">
-              <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Naziv proizvoda</label>
-                  <input
-                    type="text"
-                    value={filters.name}
-                    onChange={(e) => setFilters({...filters, name: e.target.value})}
-                    placeholder="Pretraži po nazivu..."
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Kategorija</label>
-                  <input
-                    type="text"
-                    value={filters.category}
-                    onChange={(e) => setFilters({...filters, category: e.target.value})}
-                    placeholder="Pretraži kategoriju..."
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Min. cijena (€)</label>
-                  <input
-                    type="number"
-                    value={filters.priceMin}
-                    onChange={(e) => setFilters({...filters, priceMin: e.target.value})}
-                    placeholder="0"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Max. cijena (€)</label>
-                  <input
-                    type="number"
-                    value={filters.priceMax}
-                    onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
-                    placeholder="9999"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Status</label>
-                  <select
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none"
-                  >
-                    <option value="">Svi statusi</option>
-                    <option value="available">Dostupno</option>
-                    <option value="low_stock">Niska zaliha</option>
-                    <option value="out_of_stock">Nema na lageru</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Min. količina</label>
-                  <input
-                    type="number"
-                    value={filters.quantityMin}
-                    onChange={(e) => setFilters({...filters, quantityMin: e.target.value})}
-                    placeholder="0"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Max. količina</label>
-                  <input
-                    type="number"
-                    value={filters.quantityMax}
-                    onChange={(e) => setFilters({...filters, quantityMax: e.target.value})}
-                    placeholder="999"
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                
-                <div className="flex items-end">
-                  <button
-                    onClick={clearFilters}
-                    disabled={!hasActiveFilters}
-                    className="w-full px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Očisti
-                  </button>
-                </div>
-              </div>
-
-              {/* Filter Controls - Mobile */}
-              <div className="md:hidden space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Naziv proizvoda</label>
-                    <input
-                      type="text"
-                      value={filters.name}
-                      onChange={(e) => setFilters({...filters, name: e.target.value})}
-                      placeholder="Pretraži po nazivu..."
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-2">Min. cijena</label>
-                      <input
-                        type="number"
-                        value={filters.priceMin}
-                        onChange={(e) => setFilters({...filters, priceMin: e.target.value})}
-                        placeholder="0"
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-2">Max. cijena</label>
-                      <input
-                        type="number"
-                        value={filters.priceMax}
-                        onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
-                        placeholder="9999"
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">Status</label>
-                    <select
-                      value={filters.status}
-                      onChange={(e) => setFilters({...filters, status: e.target.value})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none"
-                    >
-                      <option value="">Svi statusi</option>
-                      <option value="available">Dostupno</option>
-                      <option value="low_stock">Niska zaliha</option>
-                      <option value="out_of_stock">Nema na lageru</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-2">Min. količina</label>
-                      <input
-                        type="number"
-                        value={filters.quantityMin}
-                        onChange={(e) => setFilters({...filters, quantityMin: e.target.value})}
-                        placeholder="0"
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-2">Max. količina</label>
-                      <input
-                        type="number"
-                        value={filters.quantityMax}
-                        onChange={(e) => setFilters({...filters, quantityMax: e.target.value})}
-                        placeholder="999"
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={clearFilters}
-                    disabled={!hasActiveFilters}
-                    className="w-full px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Očisti filtere
-                  </button>
-                </div>
-              </div>
-              
-              <div className="text-sm text-gray-400 mt-4">
-                Prikazano: {filteredProducts.length} od {products.length} proizvoda
-              </div>
-            </div>
-          )}
-
-          {/* Products Table - Desktop */}
-          <div className="hidden md:block overflow-auto">
-            <table className="w-full text-left">
-              <thead className="border-b border-yellow-500/30">
-                <tr>
-                  <th className="p-4 text-yellow-400 font-semibold">ID</th>
-                  <th className="p-4 text-yellow-400 font-semibold">Naziv</th>
-                  <th className="p-4 text-yellow-400 font-semibold">Cijena</th>
-                  <th className="p-4 text-yellow-400 font-semibold">Kategorija</th>
-                  <th className="p-4 text-yellow-400 font-semibold">Količina</th>
-                  <th className="p-4 text-yellow-400 font-semibold">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentProducts.map((product) => {
-                  const invData = getInventoryStatus(product.id)
-                  return (
-                    <tr key={product.id} className="border-b border-gray-800 hover:bg-gray-800/30 transition-colors">
-                      <td className="p-4 text-yellow-400 font-medium">#{product.id}</td>
-                      <td className="p-4 text-gray-300">{product.name}</td>
-                      <td className="p-4 text-yellow-400 font-semibold">{product.price} €</td>
-                      <td className="p-4 text-gray-300">
-                        {categories.find(c => c.id === product.category)?.name || "N/A"}
-                      </td>
-                      <td className="p-4 text-gray-300 font-medium">{invData.quantity}</td>
-                      <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          invData.status === 'available' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                          invData.status === 'low_stock' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
-                          invData.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                          'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                        }`}>
-                          {invData.status === 'available' ? 'Dostupno' :
-                           invData.status === 'low_stock' ? 'Niska zaliha' :
-                           invData.status === 'out_of_stock' ? 'Nema na lageru' : 'N/A'}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Products Cards - Mobile */}
-          <div className="md:hidden space-y-4">
-            {currentProducts.map((product) => {
-              const invData = getInventoryStatus(product.id)
-              return (
-                <div key={product.id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-yellow-400 font-medium text-sm">#{product.id}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          invData.status === 'available' ? 'bg-green-500/20 text-green-400' :
-                          invData.status === 'low_stock' ? 'bg-yellow-500/20 text-yellow-400' :
-                          invData.status === 'out_of_stock' ? 'bg-red-500/20 text-red-400' :
-                          'bg-gray-500/20 text-gray-400'
-                        }`}>
-                          {invData.status === 'available' ? 'Dostupno' :
-                           invData.status === 'low_stock' ? 'Niska zaliha' :
-                           invData.status === 'out_of_stock' ? 'Nema na lageru' : 'N/A'}
-                        </span>
-                      </div>
-                      <h4 className="text-white font-medium text-lg leading-tight mb-2">{product.name}</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400 block">Cijena</span>
-                          <span className="text-yellow-400 font-semibold text-lg">{product.price} €</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400 block">Količina</span>
-                          <span className="text-white font-medium">{invData.quantity}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <span className="text-gray-400 text-sm">Kategorija: </span>
-                        <span className="text-gray-300 text-sm">
-                          {categories.find(c => c.id === product.category)?.name || "N/A"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="p-6 border-t border-yellow-500/30">
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-400">
-                  Prikazano {indexOfFirstProduct + 1}-{Math.min(indexOfLastProduct, filteredProducts.length)} od {filteredProducts.length}
-                </div>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    Prethodna
-                  </button>
-                  <span className="text-gray-400 font-medium">
-                    Stranica {currentPage} od {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                  >
-                    Sljedeća
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
       </div>
