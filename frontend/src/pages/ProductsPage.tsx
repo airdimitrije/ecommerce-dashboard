@@ -9,9 +9,7 @@ import {
   Filter, X, ArrowLeft, Plus, Edit, Trash2, Eye,
   TrendingUp, Target, AlertCircle, Loader2, BarChart3
 } from "lucide-react"
-
-// API Configuration
-const API_BASE_URL = "http://127.0.0.1:8000/api"
+import api from "../services/api"
 
 // Interfaces
 interface Product {
@@ -43,55 +41,6 @@ interface OrderItem {
 interface Order {
   id: number
   items: OrderItem[]
-}
-
-// API Functions
-const api = {
-  async get(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  },
-
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  },
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  },
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  }
 }
 
 export default function ProductsPage() {
@@ -147,15 +96,15 @@ export default function ProductsPage() {
         ])
 
         // Add category names to products
-        const productsWithCategories = productsData.map((product: Product) => ({
+        const productsWithCategories = productsData.data.map((product: Product) => ({
           ...product,
-          category_name: categoriesData.find((cat: Category) => cat.id === product.category)?.name
+          category_name: categoriesData.data.find((cat: Category) => cat.id === product.category)?.name
         }))
 
         setProducts(productsWithCategories)
-        setCategories(categoriesData)
-        setInventory(inventoryData)
-        setOrders(ordersData)
+        setCategories(categoriesData.data)
+        setInventory(inventoryData.data)
+        setOrders(ordersData.data)
 
         // Calculate price distribution
         calculatePriceDistribution(productsWithCategories)

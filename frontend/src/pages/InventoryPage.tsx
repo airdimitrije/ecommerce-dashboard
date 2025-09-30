@@ -10,48 +10,7 @@ import {
   CheckCircle, XCircle, Clock, Eye, Edit,
   DollarSign, Target
 } from "lucide-react"
-
-// API Configuration
-const API_BASE_URL = "http://127.0.0.1:8000/api"
-
-// API Functions
-const api = {
-  async get(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  },
-
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  },
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    return await response.json()
-  }
-}
+import api from "../services/api"
 
 interface Product {
   id: number
@@ -133,14 +92,14 @@ export default function InventoryPage() {
           api.get('/orders/')
         ])
 
-        setProducts(productsRes)
-        setCategories(categoriesRes)
-        setOrders(ordersRes)
+        setProducts(productsRes.data)
+        setCategories(categoriesRes.data)
+        setOrders(ordersRes.data)
 
         // Combine inventory with product and category data
-        const enrichedInventory = inventoryRes.map((inv: Inventory) => {
-          const product = productsRes.find((p: Product) => p.id === inv.product)
-          const category = categoriesRes.find((c: Category) => c.id === product?.category)
+        const enrichedInventory = inventoryRes.data.map((inv: Inventory) => {
+          const product = productsRes.data.find((p: Product) => p.id === inv.product)
+          const category = categoriesRes.data.find((c: Category) => c.id === product?.category)
           
           return {
             ...inv,
@@ -312,7 +271,7 @@ export default function InventoryPage() {
       setLoading(true)
       const inventoryRes = await api.get('/inventory/')
       
-      const enrichedInventory = inventoryRes.map((inv: Inventory) => {
+      const enrichedInventory = inventoryRes.data.map((inv: Inventory) => {
         const product = products.find((p: Product) => p.id === inv.product)
         const category = categories.find((c: Category) => c.id === product?.category)
         
@@ -684,7 +643,7 @@ export default function InventoryPage() {
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-white font-medium text-sm truncate" title={item.product}>
+                    <h4 className="text-white font-medium text-sm truncate " title={item.product}>
                       {item.product}
                     </h4>
                     <p className={`text-xs mt-1 ${
