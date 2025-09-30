@@ -144,9 +144,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# CORS Configuration
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://airdimitrije\.github\.io$",
+]
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "https://airdimitrije.github.io",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
