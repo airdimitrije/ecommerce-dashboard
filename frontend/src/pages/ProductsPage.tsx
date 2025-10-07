@@ -132,7 +132,7 @@ export default function ProductsPage() {
 
   // Calculate analytics when data changes
   useEffect(() => {
-    if (products.length && categories.length && inventory.length) {
+    if (products.length > 0 && categories.length > 0 && inventory.length > 0) {
       calculateCategoryDistribution()
       calculatePriceVsStock()
       calculateStockByCategory()
@@ -157,6 +157,10 @@ export default function ProductsPage() {
   }
 
   const calculateStockByCategory = () => {
+    if (!Array.isArray(categories) || !Array.isArray(products) || !Array.isArray(inventory)) {
+      return
+    }
+    
     const stockData = categories.map(cat => {
       const catProducts = products.filter(p => p.category === cat.id)
       const totalStock = catProducts.reduce((sum, product) => {
@@ -174,6 +178,10 @@ export default function ProductsPage() {
   }
 
   const calculateCategoryDistribution = () => {
+    if (!Array.isArray(categories) || !Array.isArray(products)) {
+      return
+    }
+    
     const catData = categories.map(cat => {
       const catProducts = products.filter(p => p.category === cat.id)
       const avgPrice = catProducts.length > 0 
@@ -191,6 +199,10 @@ export default function ProductsPage() {
   }
 
   const calculatePriceVsStock = () => {
+    if (!Array.isArray(products) || !Array.isArray(inventory)) {
+      return
+    }
+    
     const scatterData = products.map(product => {
       const inv = inventory.find(i => i.product === product.id)
       const stock = inv ? inv.quantity_in - inv.quantity_out : 0
