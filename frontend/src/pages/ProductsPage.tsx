@@ -103,20 +103,21 @@ export default function ProductsPage() {
         ])
 
         // API returns arrays directly
-        const productsList = productsData.data
-        const categoriesList = categoriesData.data
-        const inventoryList = inventoryData.data
-        const ordersList = ordersData.data
+        const productsList = productsData.data.results || productsData.data
+const categoriesList = categoriesData.data.results || categoriesData.data
+const inventoryList = inventoryData.data.results || inventoryData.data
+const ordersList = ordersData.data.results || ordersData.data
 
-        const productsWithCategories = productsList.map((product: Product) => ({
-          ...product,
-          category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
-        }))
+const productsWithCategories = (Array.isArray(productsList) ? productsList : []).map((product: Product) => ({
+  ...product,
+  category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
+}))
 
-        setProducts(productsWithCategories)
-        setCategories(categoriesList)
-        setInventory(inventoryList)
-        setOrders(ordersList)
+setProducts(productsWithCategories)
+setCategories(categoriesList)
+setInventory(inventoryList)
+setOrders(ordersList)
+
 
         calculatePriceDistribution(productsWithCategories)
       } catch (err) {
