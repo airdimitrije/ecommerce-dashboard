@@ -14,6 +14,7 @@ interface Props {
 export default function AddProductForm({ onSuccess, onCancel }: Props) {
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
+  const [sku, setSku] = useState("")              // ✅ novo polje
   const [category, setCategory] = useState("")
   const [quantity, setQuantity] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
@@ -35,14 +36,19 @@ export default function AddProductForm({ onSuccess, onCancel }: Props) {
       console.log("📦 Sending product data:", {
         name,
         price: parseFloat(price),
-        category: parseInt(category)
+        category: parseInt(category),
+        sku
       })
+
+      // ✅ Ako korisnik nije unio SKU, napravi ga automatski
+      const finalSku = sku.trim() !== "" ? sku : `SKU-${Date.now()}`
 
       // 1️⃣ Kreiraj proizvod
       const res = await api.post("/products/", {
         name,
         price: parseFloat(price),
-        category: parseInt(category)
+        category: parseInt(category),
+        sku: finalSku
       })
 
       // 2️⃣ Kreiraj inicijalni inventar (ako ima unosa)
@@ -90,6 +96,18 @@ export default function AddProductForm({ onSuccess, onCancel }: Props) {
           required
           className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-green-400 outline-none"
           placeholder="npr. 49.99"
+        />
+      </div>
+
+      {/* ✅ NOVO POLJE SKU */}
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">Šifra proizvoda (SKU)</label>
+        <input
+          type="text"
+          value={sku}
+          onChange={e => setSku(e.target.value)}
+          className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-green-400 outline-none"
+          placeholder="npr. IPH-001 ili SKU-12345"
         />
       </div>
 
