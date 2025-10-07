@@ -102,15 +102,21 @@ export default function ProductsPage() {
           api.get('/orders/')
         ])
 
-        const productsWithCategories = productsData.data.map((product: Product) => ({
+        // API returns arrays directly
+        const productsList = productsData.data
+        const categoriesList = categoriesData.data
+        const inventoryList = inventoryData.data
+        const ordersList = ordersData.data
+
+        const productsWithCategories = productsList.map((product: Product) => ({
           ...product,
-          category_name: categoriesData.data.find((cat: Category) => cat.id === product.category)?.name
+          category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
         }))
 
         setProducts(productsWithCategories)
-        setCategories(categoriesData.data)
-        setInventory(inventoryData.data)
-        setOrders(ordersData.data)
+        setCategories(categoriesList)
+        setInventory(inventoryList)
+        setOrders(ordersList)
 
         calculatePriceDistribution(productsWithCategories)
       } catch (err) {
