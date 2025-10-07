@@ -30,15 +30,22 @@ export default function AddProductForm({ onSuccess, onCancel }: Props) {
     e.preventDefault()
     setError("")
     setLoading(true)
+
     try {
-      // 1️⃣ Kreiraj proizvod
-      const res = await api.post("/products/", {
+      console.log("📦 Sending product data:", {
         name,
-        price,
+        price: parseFloat(price),
         category: parseInt(category)
       })
 
-      // 2️⃣ Kreiraj inicijalni inventar
+      // 1️⃣ Kreiraj proizvod
+      const res = await api.post("/products/", {
+        name,
+        price: parseFloat(price),
+        category: parseInt(category)
+      })
+
+      // 2️⃣ Kreiraj inicijalni inventar (ako ima unosa)
       if (quantity) {
         await api.post("/inventory/", {
           product: res.data.id,
@@ -49,8 +56,8 @@ export default function AddProductForm({ onSuccess, onCancel }: Props) {
       }
 
       onSuccess()
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      console.error("❌ API error:", err.response?.data)
       setError("Greška pri dodavanju proizvoda. Provjerite unos.")
     } finally {
       setLoading(false)
