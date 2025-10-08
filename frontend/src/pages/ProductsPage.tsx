@@ -10,6 +10,8 @@ import {
   TrendingUp, Target, AlertCircle, Loader2, BarChart3
 } from "lucide-react"
 import api from "../services/api"
+import EditProductForm from "../components/EditProductForm"
+
 
 // Interfaces
 interface Product {
@@ -42,6 +44,8 @@ interface Order {
   id: number
   items: OrderItem[]
 }
+
+
 
 export default function ProductsPage() {
   const navigate = useNavigate()
@@ -995,46 +999,42 @@ export default function ProductsPage() {
         )}
 
         {showEditModal && selectedProduct && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900 border border-yellow-400/40 rounded-3xl w-full max-w-2xl shadow-2xl transform transition-all duration-300">
-              <div className="h-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 rounded-t-3xl"></div>
-              
-              <div className="p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-2xl font-bold text-yellow-400">Uredi proizvod</h3>
-                    <p className="text-gray-400 text-sm mt-1">ID: #{selectedProduct.id}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowEditModal(false)
-                      setSelectedProduct(null)
-                    }}
-                    className="p-2 hover:bg-gray-700/50 rounded-full transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-                
-                <div className="text-center py-12">
-                  <Edit className="w-16 h-16 text-yellow-400/50 mx-auto mb-4" />
-                  <p className="text-gray-400">Funkcionalnost uređivanja proizvoda će biti implementirana uskoro.</p>
-                  <p className="text-gray-500 text-sm mt-2">Ova forma će sadržati polja za izmjenu naziva, cijene, kategorije i zaliha.</p>
-                </div>
-                
-                <button
-                  onClick={() => {
-                    setShowEditModal(false)
-                    setSelectedProduct(null)
-                  }}
-                  className="w-full py-3 bg-gradient-to-r from-yellow-400/10 to-amber-400/10 border border-yellow-400/30 rounded-xl text-yellow-400 font-semibold hover:from-yellow-400/20 hover:to-amber-400/20 transition-all"
-                >
-                  Zatvori
-                </button>
-              </div>
-            </div>
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900 border border-yellow-400/40 rounded-3xl w-full max-w-2xl shadow-2xl transform transition-all duration-300">
+      <div className="h-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-orange-400 rounded-t-3xl"></div>
+
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-2xl font-bold text-yellow-400">Uredi proizvod</h3>
           </div>
-        )}
+          <button
+            onClick={() => {
+              setShowEditModal(false)
+              setSelectedProduct(null)
+            }}
+            className="p-2 hover:bg-gray-700/50 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </div>
+
+        <EditProductForm
+          product={selectedProduct}
+          onSuccess={() => {
+            setShowEditModal(false)
+            setSelectedProduct(null)
+            window.location.reload() // ✅ osvježi listu proizvoda
+          }}
+          onCancel={() => {
+            setShowEditModal(false)
+            setSelectedProduct(null)
+          }}
+        />
+      </div>
+    </div>
+  </div>
+)}
 
         {showAddModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
