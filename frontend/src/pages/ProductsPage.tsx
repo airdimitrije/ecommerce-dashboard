@@ -46,12 +46,14 @@ interface Order {
 export default function ProductsPage() {
   const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
+  const [allProducts, setAllProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [inventory, setInventory] = useState<Inventory[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [totalPages, setTotalPages] = useState<number>(1)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showProductModal, setShowProductModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -95,35 +97,48 @@ export default function ProductsPage() {
         setLoading(true)
         setError(null)
 
-        const [productsData, categoriesData, inventoryData, ordersData] = await Promise.all([
-  api.get('/products/'),
-  api.get('/categories/'),
-  api.get('/inventory/'),
-  api.get('/orders/')
-])
+        // Paralelni pozivi: paginacija + svi proizvodi + ostali podaci
+        const [productsRes, allProductsRes, categoriesRes, inventoryRes, ordersRes] = await Promise.all([
+          api.get(`/products/?page=${currentPage}`),
+          api.get('/products/?page_size=9999'),
+          api.get('/categories/'),
+          api.get('/inventory/'),
+          api.get('/orders/')
+        ])
 
-const productsList = productsData.data.results || productsData.data
-const categoriesList = categoriesData.data.results || categoriesData.data
-const inventoryList = inventoryData.data.results || inventoryData.data
-const ordersList = ordersData.data.results || ordersData.data
+        // Proizvodi za trenutnu stranicu (paginacija)
+        const productsList = productsRes.data.results || productsRes.data
+        
+        // Svi proizvodi za statistiku
+        const allList = allProductsRes.data.results || allProductsRes.data
+        
+        const categoriesList = categoriesRes.data.results || categoriesRes.data
+        const inventoryList = inventoryRes.data.results || inventoryRes.data
+        const ordersList = ordersRes.data.results || ordersRes.data
 
-
-        console.log('Products:', productsList)
-        console.log('Categories:', categoriesList)
-        console.log('Inventory:', inventoryList)
-        console.log('Orders:', ordersList)
-
+        // Dodaj category_name svim proizvodima
         const productsWithCategories = productsList.map((product: Product) => ({
           ...product,
           category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
         }))
 
+        const allProductsWithCategories = allList.map((product: Product) => ({
+          ...product,
+          category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
+        }))
+
         setProducts(productsWithCategories)
+        setAllProducts(allProductsWithCategories)
         setCategories(categoriesList)
         setInventory(inventoryList)
         setOrders(ordersList)
 
-        calculatePriceDistribution(productsWithCategories)
+        // Postavi ukupan broj stranica
+        const totalCount = allProductsRes.data.count || allList.length
+        setTotalPages(Math.ceil(totalCount / productsPerPage))
+
+        // Izračunaj statistike sa SVIM proizvodima
+        calculatePriceDistribution(allProductsWithCategories)
       } catch (err) {
         console.error('Error loading data:', err)
         setError('Greška pri učitavanju podataka. Molimo pokušajte ponovo.')
@@ -133,16 +148,16 @@ const ordersList = ordersData.data.results || ordersData.data
     }
 
     loadData()
-  }, [])
+  }, [currentPage])
 
   // Calculate analytics when data changes
   useEffect(() => {
-    if (products.length > 0 && categories.length > 0 && inventory.length > 0) {
+    if (allProducts.length > 0 && categories.length > 0 && inventory.length > 0) {
       calculateCategoryDistribution()
       calculatePriceVsStock()
       calculateStockByCategory()
     }
-  }, [products, categories, inventory])
+  }, [allProducts, categories, inventory])
 
   const calculatePriceDistribution = (productsData: Product[]) => {
     const prices = productsData.map(p => parseFloat(p.price))
@@ -162,12 +177,12 @@ const ordersList = ordersData.data.results || ordersData.data
   }
 
   const calculateStockByCategory = () => {
-    if (!Array.isArray(categories) || !Array.isArray(products) || !Array.isArray(inventory)) {
+    if (!Array.isArray(categories) || !Array.isArray(allProducts) || !Array.isArray(inventory)) {
       return
     }
     
     const stockData = categories.map(cat => {
-      const catProducts = products.filter(p => p.category === cat.id)
+      const catProducts = allProducts.filter(p => p.category === cat.id)
       const totalStock = catProducts.reduce((sum, product) => {
         const inv = inventory.find(i => i.product === product.id)
         return sum + (inv ? Math.max(0, inv.quantity_in - inv.quantity_out) : 0)
@@ -183,12 +198,12 @@ const ordersList = ordersData.data.results || ordersData.data
   }
 
   const calculateCategoryDistribution = () => {
-    if (!Array.isArray(categories) || !Array.isArray(products)) {
+    if (!Array.isArray(categories) || !Array.isArray(allProducts)) {
       return
     }
     
     const catData = categories.map(cat => {
-      const catProducts = products.filter(p => p.category === cat.id)
+      const catProducts = allProducts.filter(p => p.category === cat.id)
       const avgPrice = catProducts.length > 0 
         ? catProducts.reduce((sum, p) => sum + parseFloat(p.price), 0) / catProducts.length 
         : 0
@@ -204,11 +219,11 @@ const ordersList = ordersData.data.results || ordersData.data
   }
 
   const calculatePriceVsStock = () => {
-    if (!Array.isArray(products) || !Array.isArray(inventory)) {
+    if (!Array.isArray(allProducts) || !Array.isArray(inventory)) {
       return
     }
     
-    const scatterData = products.map(product => {
+    const scatterData = allProducts.map(product => {
       const inv = inventory.find(i => i.product === product.id)
       const stock = inv ? inv.quantity_in - inv.quantity_out : 0
       return {
@@ -228,7 +243,7 @@ const ordersList = ordersData.data.results || ordersData.data
     return { quantity, status: inv.status }
   }
 
-  // Apply filters and search
+  // Apply filters and search (samo na trenutnoj stranici)
   const filteredProducts = products.filter(product => {
     const invData = getInventoryStatus(product.id)
     const price = parseFloat(product.price)
@@ -266,12 +281,6 @@ const ordersList = ordersData.data.results || ordersData.data
         return 0
     }
   })
-
-  // Pagination
-  const indexOfLastProduct = currentPage * productsPerPage
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage
-  const currentProducts = sortedProducts.slice(indexOfFirstProduct, indexOfLastProduct)
-  const totalPages = Math.ceil(sortedProducts.length / productsPerPage)
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -324,6 +333,7 @@ const ordersList = ordersData.data.results || ordersData.data
     try {
       await api.delete(`/products/${deleteProductId}/`)
       setProducts(products.filter(p => p.id !== deleteProductId))
+      setAllProducts(allProducts.filter(p => p.id !== deleteProductId))
       setShowDeleteModal(false)
       setDeleteProductId(null)
     } catch (err) {
@@ -679,7 +689,7 @@ const ordersList = ordersData.data.results || ordersData.data
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Ukupno proizvoda</p>
-                <p className="text-3xl font-bold text-yellow-400">{products.length}</p>
+                <p className="text-3xl font-bold text-yellow-400">{allProducts.length}</p>
               </div>
               <div className="p-3 bg-yellow-500/20 rounded-xl">
                 <Package className="w-8 h-8 text-yellow-400" />
@@ -692,8 +702,8 @@ const ordersList = ordersData.data.results || ordersData.data
               <div>
                 <p className="text-sm text-gray-400 mb-1">Prosječna cijena</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {products.length > 0 ? 
-                    Math.round(products.reduce((sum, p) => sum + parseFloat(p.price), 0) / products.length) 
+                  {allProducts.length > 0 ? 
+                    Math.round(allProducts.reduce((sum, p) => sum + parseFloat(p.price), 0) / allProducts.length) 
                     : 0} €
                 </p>
               </div>
@@ -823,14 +833,14 @@ const ordersList = ordersData.data.results || ordersData.data
             <div className="flex items-center justify-between">
               <h3 className="text-yellow-400 text-xl font-semibold">Lista proizvoda</h3>
               <div className="text-sm text-gray-400">
-                Prikazano: {sortedProducts.length} {searchQuery && `(pretraga: "${searchQuery}")`}
+                Stranica {currentPage} od {totalPages} • Ukupno: {allProducts.length}
               </div>
             </div>
           </div>
 
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {currentProducts.map((product) => {
+              {sortedProducts.map((product) => {
                 const invData = getInventoryStatus(product.id)
                 const category = categories.find(c => c.id === product.category)
                 
@@ -907,8 +917,8 @@ const ordersList = ordersData.data.results || ordersData.data
               })}
             </div>
 
-            {currentProducts.length === 0 && (
-              <div className="text-center py-12 col-span-full">
+            {sortedProducts.length === 0 && (
+              <div className="text-center py-12">
                 <Package className="w-16 h-16 text-gray-500 mx-auto mb-4" />
                 <h3 className="text-xl text-gray-400 mb-2">Nema proizvoda</h3>
                 <p className="text-gray-500">
@@ -920,7 +930,7 @@ const ordersList = ordersData.data.results || ordersData.data
             {totalPages > 1 && (
               <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-700">
                 <div className="text-sm text-gray-400">
-                  Prikazano {indexOfFirstProduct + 1}-{Math.min(indexOfLastProduct, sortedProducts.length)} od {sortedProducts.length}
+                  Stranica {currentPage} od {totalPages}
                 </div>
                 <div className="flex items-center gap-4">
                   <button
