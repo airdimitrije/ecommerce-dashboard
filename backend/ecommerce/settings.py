@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'store',
     'dashboard',
     'rest_framework',
-    'django_filters',
+    'django_filters',  # ✅ VAŽNO
     'corsheaders',
 ]
 
@@ -102,6 +102,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# ✅ KLJUČNA KONFIGURACIJA
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
