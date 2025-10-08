@@ -96,17 +96,17 @@ export default function ProductsPage() {
         setError(null)
 
         const [productsData, categoriesData, inventoryData, ordersData] = await Promise.all([
-          api.get('/products/'),
-          api.get('/categories/'),
-          api.get('/inventory/'),
-          api.get('/orders/')
-        ])
+  api.get('/products/'),
+  api.get('/categories/'),
+  api.get('/inventory/'),
+  api.get('/orders/')
+])
 
-        // API returns arrays directly
-        const productsList = Array.isArray(productsData.data) ? productsData.data : []
-        const categoriesList = Array.isArray(categoriesData.data) ? categoriesData.data : []
-        const inventoryList = Array.isArray(inventoryData.data) ? inventoryData.data : []
-        const ordersList = Array.isArray(ordersData.data) ? ordersData.data : []
+const productsList = productsData.data.results || productsData.data
+const categoriesList = categoriesData.data.results || categoriesData.data
+const inventoryList = inventoryData.data.results || inventoryData.data
+const ordersList = ordersData.data.results || ordersData.data
+
 
         console.log('Products:', productsList)
         console.log('Categories:', categoriesList)
