@@ -40,10 +40,14 @@ class ProductImage(models.Model):
 
 
 # -----------------------------
-# ✅ Inventory model
+# ✅ Inventory model (fixed conflict)
 # -----------------------------
 class Inventory(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="shop_inventory"  # ✅ unique related_name to avoid clash with store.Inventory
+    )
     quantity_in = models.IntegerField(default=0)
     quantity_out = models.IntegerField(default=0)
     status = models.CharField(max_length=20, default="available")
