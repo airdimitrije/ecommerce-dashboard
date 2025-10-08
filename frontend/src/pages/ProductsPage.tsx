@@ -10,8 +10,6 @@ import {
   TrendingUp, Target, AlertCircle, Loader2, BarChart3
 } from "lucide-react"
 import api from "../services/api"
-import AddProductForm from "../components/AddProductForm"
-
 
 // Interfaces
 interface Product {
@@ -105,21 +103,25 @@ export default function ProductsPage() {
         ])
 
         // API returns arrays directly
-        const productsList = productsData.data.results || productsData.data
-const categoriesList = categoriesData.data.results || categoriesData.data
-const inventoryList = inventoryData.data.results || inventoryData.data
-const ordersList = ordersData.data.results || ordersData.data
+        const productsList = Array.isArray(productsData.data) ? productsData.data : []
+        const categoriesList = Array.isArray(categoriesData.data) ? categoriesData.data : []
+        const inventoryList = Array.isArray(inventoryData.data) ? inventoryData.data : []
+        const ordersList = Array.isArray(ordersData.data) ? ordersData.data : []
 
-const productsWithCategories = (Array.isArray(productsList) ? productsList : []).map((product: Product) => ({
-  ...product,
-  category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
-}))
+        console.log('Products:', productsList)
+        console.log('Categories:', categoriesList)
+        console.log('Inventory:', inventoryList)
+        console.log('Orders:', ordersList)
 
-setProducts(productsWithCategories)
-setCategories(categoriesList)
-setInventory(inventoryList)
-setOrders(ordersList)
+        const productsWithCategories = productsList.map((product: Product) => ({
+          ...product,
+          category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
+        }))
 
+        setProducts(productsWithCategories)
+        setCategories(categoriesList)
+        setInventory(inventoryList)
+        setOrders(ordersList)
 
         calculatePriceDistribution(productsWithCategories)
       } catch (err) {
@@ -718,7 +720,7 @@ setOrders(ordersList)
               <div>
                 <p className="text-sm text-gray-400 mb-1">Nema na lageru</p>
                 <p className="text-3xl font-bold text-red-400">
-                  {inventory.filter(inv => inv.status === 'out_of_stock').length}
+                  {Array.isArray(inventory) ? inventory.filter(inv => inv.status === 'out_of_stock').length : 0}
                 </p>
               </div>
               <div className="p-3 bg-red-500/20 rounded-xl">
@@ -916,7 +918,7 @@ setOrders(ordersList)
             )}
 
             {totalPages > 1 && (
-              <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-700 col-span-full">
+              <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-700">
                 <div className="text-sm text-gray-400">
                   Prikazano {indexOfFirstProduct + 1}-{Math.min(indexOfLastProduct, sortedProducts.length)} od {sortedProducts.length}
                 </div>
@@ -1028,25 +1030,40 @@ setOrders(ordersList)
         )}
 
         {showAddModal && (
-  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900 border border-green-400/40 rounded-3xl w-full max-w-2xl shadow-2xl transform transition-all duration-300">
-      <div className="h-2 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-t-3xl"></div>
-
-      <div className="p-8">
-        <h3 className="text-2xl font-bold text-green-400 mb-6">Dodaj novi proizvod</h3>
-
-        <AddProductForm
-          onSuccess={() => {
-            setShowAddModal(false)
-            window.location.reload()
-          }}
-          onCancel={() => setShowAddModal(false)}
-        />
-      </div>
-    </div>
-  </div>
-)}
-
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-gray-800 via-gray-850 to-gray-900 border border-green-400/40 rounded-3xl w-full max-w-2xl shadow-2xl transform transition-all duration-300">
+              <div className="h-2 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-t-3xl"></div>
+              
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-green-400">Dodaj novi proizvod</h3>
+                    <p className="text-gray-400 text-sm mt-1">Kreirajte novi proizvod u sistemu</p>
+                  </div>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="p-2 hover:bg-gray-700/50 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+                
+                <div className="text-center py-12">
+                  <Plus className="w-16 h-16 text-green-400/50 mx-auto mb-4" />
+                  <p className="text-gray-400">Funkcionalnost dodavanja proizvoda će biti implementirana uskoro.</p>
+                  <p className="text-gray-500 text-sm mt-2">Ova forma će sadržati polja za unos naziva, cijene, kategorije i početnih zaliha.</p>
+                </div>
+                
+                <button
+                  onClick={() => setShowAddModal(false)}
+                  className="w-full py-3 bg-gradient-to-r from-green-400/10 to-emerald-400/10 border border-green-400/30 rounded-xl text-green-400 font-semibold hover:from-green-400/20 hover:to-emerald-400/20 transition-all"
+                >
+                  Zatvori
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
