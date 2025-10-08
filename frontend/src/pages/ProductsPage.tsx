@@ -97,26 +97,45 @@ export default function ProductsPage() {
         setLoading(true)
         setError(null)
 
-        // Paralelni pozivi: paginacija + svi proizvodi + ostali podaci
+        // Build query params za filtere
+        const params = new URLSearchParams()
+        params.append('page', currentPage.toString())
+        
+        if (searchQuery) params.append('search', searchQuery)
+        if (sortOption) {
+          // Map frontend sort options to backend ordering
+          const orderingMap: { [key: string]: string } = {
+            'price_asc': 'price',
+            'price_desc': '-price',
+            'name_asc': 'name',
+            'name_desc': '-name',
+            'category': 'category'
+          }
+          params.append('ordering', orderingMap[sortOption] || '')
+        }
+        if (filters.category) {
+          const cat = categories.find(c => c.name === filters.category)
+          if (cat) params.append('category', cat.id.toString())
+        }
+        if (filters.priceMin) params.append('price__gte', filters.priceMin)
+        if (filters.priceMax) params.append('price__lte', filters.priceMax)
+
+        // Paralelni pozivi sa filterima
         const [productsRes, allProductsRes, categoriesRes, inventoryRes, ordersRes] = await Promise.all([
-          api.get(`/products/?page=${currentPage}`),
-          api.get('/products/?page_size=9999'),
+          api.get(`/products/?${params.toString()}`),
+          api.get('/products/?page_size=9999'), // Svi proizvodi za statistiku
           api.get('/categories/'),
           api.get('/inventory/'),
           api.get('/orders/')
         ])
 
-        // Proizvodi za trenutnu stranicu (paginacija)
         const productsList = productsRes.data.results || productsRes.data
-        
-        // Svi proizvodi za statistiku
         const allList = allProductsRes.data.results || allProductsRes.data
-        
         const categoriesList = categoriesRes.data.results || categoriesRes.data
         const inventoryList = inventoryRes.data.results || inventoryRes.data
         const ordersList = ordersRes.data.results || ordersRes.data
 
-        // Dodaj category_name svim proizvodima
+        // Dodaj category_name
         const productsWithCategories = productsList.map((product: Product) => ({
           ...product,
           category_name: categoriesList.find((cat: Category) => cat.id === product.category)?.name
@@ -133,11 +152,10 @@ export default function ProductsPage() {
         setInventory(inventoryList)
         setOrders(ordersList)
 
-        // Postavi ukupan broj stranica
-        const totalCount = allProductsRes.data.count || allList.length
+        // Postavi ukupan broj stranica iz API response
+        const totalCount = productsRes.data.count || productsList.length
         setTotalPages(Math.ceil(totalCount / productsPerPage))
 
-        // Izračunaj statistike sa SVIM proizvodima
         calculatePriceDistribution(allProductsWithCategories)
       } catch (err) {
         console.error('Error loading data:', err)
@@ -148,7 +166,7 @@ export default function ProductsPage() {
     }
 
     loadData()
-  }, [currentPage])
+  }, [currentPage, searchQuery, sortOption, filters.category, filters.priceMin, filters.priceMax])
 
   // Calculate analytics when data changes
   useEffect(() => {
@@ -243,44 +261,20 @@ export default function ProductsPage() {
     return { quantity, status: inv.status }
   }
 
-  // Apply filters and search (samo na trenutnoj stranici)
+  // Client-side filtering samo za inventory status i quantity (koje backend ne podržava)
   const filteredProducts = products.filter(product => {
     const invData = getInventoryStatus(product.id)
-    const price = parseFloat(product.price)
-    
-    const matchesSearch = !searchQuery || 
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category_name?.toLowerCase().includes(searchQuery.toLowerCase())
     
     return (
-      matchesSearch &&
       (!filters.name || product.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-      (!filters.category || categories.find(c => c.id === product.category)?.name.toLowerCase().includes(filters.category.toLowerCase())) &&
-      (!filters.priceMin || price >= parseFloat(filters.priceMin)) &&
-      (!filters.priceMax || price <= parseFloat(filters.priceMax)) &&
       (!filters.status || invData.status === filters.status) &&
       (!filters.quantityMin || invData.quantity >= parseInt(filters.quantityMin)) &&
       (!filters.quantityMax || invData.quantity <= parseInt(filters.quantityMax))
     )
   })
 
-  // Apply sorting
-  const sortedProducts = [...filteredProducts].sort((a, b) => {
-    switch(sortOption) {
-      case 'price_asc':
-        return parseFloat(a.price) - parseFloat(b.price)
-      case 'price_desc':
-        return parseFloat(b.price) - parseFloat(a.price)
-      case 'name_asc':
-        return a.name.localeCompare(b.name)
-      case 'name_desc':
-        return b.name.localeCompare(a.name)
-      case 'category':
-        return (a.category_name || '').localeCompare(b.category_name || '')
-      default:
-        return 0
-    }
-  })
+  // Sorting je sada na backendu, ali možemo dodati još opcija
+  const sortedProducts = [...filteredProducts]
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -297,6 +291,9 @@ export default function ProductsPage() {
       quantityMin: '',
       quantityMax: ''
     })
+    setSearchQuery('')
+    setSortOption('')
+    setCurrentPage(1)
   }
 
   const COLORS = ["#EAB308", "#F59E0B", "#FBBF24", "#FCD34D", "#84CC16", "#22D3EE", "#8B5CF6", "#F97316"]
