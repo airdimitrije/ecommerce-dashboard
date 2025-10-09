@@ -1,5 +1,10 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import api from "../services/api"
+
+interface Category {
+  id: number
+  name: string
+}
 
 interface EditProductFormProps {
   product: {
@@ -22,9 +27,23 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
     sku: product.sku || "",
     description: product.description || "",
   })
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // 🔹 Učitaj kategorije
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await api.get("/categories/?page_size=9999")
+        setCategories(res.data.results || res.data)
+      } catch (err) {
+        console.error("Greška pri učitavanju kategorija:", err)
+      }
+    }
+    loadCategories()
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -62,7 +81,6 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.name}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
-          placeholder="Unesite naziv proizvoda"
         />
       </div>
 
@@ -75,7 +93,6 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.price}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
-          placeholder="Unesite cijenu"
         />
       </div>
 
@@ -88,21 +105,25 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.sku}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
-          placeholder="Unesite SKU proizvoda"
         />
       </div>
 
-      {/* Kategorija */}
+      {/* Kategorija - dropdown */}
       <div>
-        <label className="block text-sm text-gray-400 mb-2">Kategorija (ID)</label>
-        <input
-          type="number"
+        <label className="block text-sm text-gray-400 mb-2">Kategorija</label>
+        <select
           name="category"
           value={formData.category}
-          onChange={handleChange}
+          onChange={(e) => setFormData({ ...formData, category: Number(e.target.value) })}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
-          placeholder="Unesite ID kategorije"
-        />
+        >
+          <option value="">-- Odaberite kategoriju --</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Opis */}
@@ -113,11 +134,10 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.description}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white h-24 resize-none focus:border-yellow-400 outline-none"
-          placeholder="Unesite opis proizvoda"
         />
       </div>
 
-      {/* Statusi i dugmad */}
+      {/* Poruke i dugmad */}
       {error && <p className="text-red-400 text-sm">{error}</p>}
       {success && <p className="text-green-400 text-sm">✅ Proizvod uspješno ažuriran!</p>}
 

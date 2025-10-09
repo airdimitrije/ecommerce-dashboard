@@ -1,5 +1,10 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import api from "../services/api"
+
+interface Category {
+  id: number
+  name: string
+}
 
 interface AddProductFormProps {
   onSuccess: () => void
@@ -9,16 +14,30 @@ interface AddProductFormProps {
 export default function AddProductForm({ onSuccess, onCancel }: AddProductFormProps) {
   const [name, setName] = useState("")
   const [price, setPrice] = useState("")
-  const [category, setCategory] = useState("")
   const [sku, setSku] = useState("")
   const [description, setDescription] = useState("")
+  const [category, setCategory] = useState<number | "">("")
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
+
+  // 🔹 Učitaj kategorije sa API-ja
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await api.get("/categories/?page_size=9999")
+        setCategories(res.data.results || res.data)
+      } catch (err) {
+        console.error("Greška pri učitavanju kategorija:", err)
+      }
+    }
+    loadCategories()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name || !price || !sku) {
-      alert("Naziv, cijena i SKU su obavezni.")
+    if (!name || !price || !sku || !category) {
+      alert("Naziv, cijena, SKU i kategorija su obavezni.")
       return
     }
 
@@ -29,7 +48,7 @@ export default function AddProductForm({ onSuccess, onCancel }: AddProductFormPr
         price,
         category,
         sku,
-        description
+        description,
       })
       onSuccess()
     } catch (err) {
@@ -74,20 +93,25 @@ export default function AddProductForm({ onSuccess, onCancel }: AddProductFormPr
           value={sku}
           onChange={(e) => setSku(e.target.value)}
           className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white"
-          placeholder="Unesite SKU (npr. PROD-123)"
+          placeholder="Unesite šifru proizvoda"
         />
       </div>
 
-      {/* Kategorija */}
+      {/* Kategorija - dropdown */}
       <div>
         <label className="block text-sm text-gray-400 mb-1">Kategorija</label>
-        <input
-          type="text"
+        <select
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(e) => setCategory(Number(e.target.value))}
           className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white"
-          placeholder="Unesite naziv kategorije"
-        />
+        >
+          <option value="">-- Odaberite kategoriju --</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Opis */}
@@ -97,7 +121,7 @@ export default function AddProductForm({ onSuccess, onCancel }: AddProductFormPr
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white h-24 resize-none"
-          placeholder="Unesite kratak opis proizvoda"
+          placeholder="Unesite opis proizvoda"
         />
       </div>
 
