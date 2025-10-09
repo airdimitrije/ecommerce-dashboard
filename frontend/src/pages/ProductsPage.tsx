@@ -81,6 +81,17 @@ export default function ProductsPage() {
     quantityMax: ''
   })
 
+  // NOVI STATE: Lokalni filteri koji se ne šalju odmah na backend
+  const [localFilters, setLocalFilters] = useState({
+    category: '',
+    priceMin: '',
+    priceMax: '',
+    status: '',
+    quantityMin: '',
+    quantityMax: '',
+    searchQuery: ''
+  })
+
   const productsPerPage = 8
 
   useEffect(() => {
@@ -247,23 +258,18 @@ export default function ProductsPage() {
     setPriceVsStock(scatterData)
   }
 
-  // ✅ Tačno računa količinu i status bez oslanjanja na bazni status
-const getInventoryStatus = (productId: number) => {
-  const inv = inventory.find(i => i.product === productId)
-  if (!inv) return { quantity: 0, status: 'N/A' }
+  const getInventoryStatus = (productId: number) => {
+    const inv = inventory.find(i => i.product === productId)
+    if (!inv) return { quantity: 0, status: 'N/A' }
 
-  // stvarna količina
-  const quantity = Math.max(0, inv.quantity_in - inv.quantity_out)
+    const quantity = Math.max(0, inv.quantity_in - inv.quantity_out)
 
-  // automatski izračun statusa
-  let status = 'available'
-  if (quantity === 0) status = 'out_of_stock'
-  else if (quantity < 10) status = 'low_stock'
+    let status = 'available'
+    if (quantity === 0) status = 'out_of_stock'
+    else if (quantity < 10) status = 'low_stock'
 
-  return { quantity, status }
-}
-
-
+    return { quantity, status }
+  }
 
   const filteredProducts = products.filter(product => {
     const invData = getInventoryStatus(product.id)
@@ -281,7 +287,31 @@ const getInventoryStatus = (productId: number) => {
     setCurrentPage(1)
   }, [filters])
 
+  // NOVA FUNKCIJA: Primjena filtera
+  const applyFilters = () => {
+    setFilters({
+      category: localFilters.category,
+      priceMin: localFilters.priceMin,
+      priceMax: localFilters.priceMax,
+      status: localFilters.status,
+      quantityMin: localFilters.quantityMin,
+      quantityMax: localFilters.quantityMax
+    })
+    setSearchQuery(localFilters.searchQuery)
+    setCurrentPage(1)
+  }
+
+  // AŽURIRANA FUNKCIJA: Clear filters
   const clearFilters = () => {
+    setLocalFilters({
+      category: '',
+      priceMin: '',
+      priceMax: '',
+      status: '',
+      quantityMin: '',
+      quantityMax: '',
+      searchQuery: ''
+    })
     setFilters({
       category: '',
       priceMin: '',
@@ -470,116 +500,125 @@ const getInventoryStatus = (productId: number) => {
   }
 
   const FilterSidebar = () => (
-  <div className="space-y-4">
-    {/* NOVO: Filter za pretragu po nazivu */}
-    <div>
-      <label className="block text-sm text-gray-400 mb-2">Pretraži po nazivu</label>
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Unesite naziv..."
-          className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-        />
-      </div>
-    </div>
-
-    <div>
-      <label className="block text-sm text-gray-400 mb-2">Kategorija</label>
-      <select
-        value={filters.category}
-        onChange={(e) => setFilters({...filters, category: e.target.value})}
-        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none transition-colors"
-      >
-        <option value="">Sve kategorije</option>
-        {categories.map(cat => (
-          <option key={cat.id} value={cat.name}>{cat.name}</option>
-        ))}
-      </select>
-    </div>
-    
-    <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-4">
+      {/* Filter za pretragu po nazivu */}
       <div>
-        <label className="block text-sm text-gray-400 mb-2">Min. cijena</label>
-        <input
-          type="number"
-          value={filters.priceMin}
-          onChange={(e) => setFilters({...filters, priceMin: e.target.value})}
-          placeholder="0"
-          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-        />
-      </div>
-      
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">Max. cijena</label>
-        <input
-          type="number"
-          value={filters.priceMax}
-          onChange={(e) => setFilters({...filters, priceMax: e.target.value})}
-          placeholder="9999"
-          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-        />
-      </div>
-    </div>
-    
-    <div>
-      <label className="block text-sm text-gray-400 mb-2">Status zaliha</label>
-      <select
-        value={filters.status}
-        onChange={(e) => setFilters({...filters, status: e.target.value})}
-        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none transition-colors"
-      >
-        <option value="">Svi statusi</option>
-        <option value="available">Dostupno</option>
-        <option value="low_stock">Niska zaliha</option>
-        <option value="out_of_stock">Nema na lageru</option>
-      </select>
-    </div>
-    
-    <div className="grid grid-cols-2 gap-3">
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">Min. količina</label>
-        <input
-          type="number"
-          value={filters.quantityMin}
-          onChange={(e) => setFilters({...filters, quantityMin: e.target.value})}
-          placeholder="0"
-          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-        />
-      </div>
-      
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">Max. količina</label>
-        <input
-          type="number"
-          value={filters.quantityMax}
-          onChange={(e) => setFilters({...filters, quantityMax: e.target.value})}
-          placeholder="999"
-          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-        />
-      </div>
-    </div>
-
-    <div className="pt-4 space-y-2">
-      <button
-        onClick={clearFilters}
-        disabled={!hasActiveFilters}
-        className="w-full px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-      >
-        <X className="w-4 h-4" />
-        Očisti filtere
-      </button>
-      
-      {hasActiveFilters && (
-        <div className="text-xs text-center text-gray-400 bg-gray-900/50 py-2 rounded-lg">
-          Aktivni filteri
+        <label className="block text-sm text-gray-400 mb-2">Pretraži po nazivu</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={localFilters.searchQuery}
+            onChange={(e) => setLocalFilters({...localFilters, searchQuery: e.target.value})}
+            placeholder="Unesite naziv..."
+            className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
+          />
         </div>
-      )}
+      </div>
+
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">Kategorija</label>
+        <select
+          value={localFilters.category}
+          onChange={(e) => setLocalFilters({...localFilters, category: e.target.value})}
+          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none transition-colors"
+        >
+          <option value="">Sve kategorije</option>
+          {categories.map(cat => (
+            <option key={cat.id} value={cat.name}>{cat.name}</option>
+          ))}
+        </select>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Min. cijena</label>
+          <input
+            type="number"
+            value={localFilters.priceMin}
+            onChange={(e) => setLocalFilters({...localFilters, priceMin: e.target.value})}
+            placeholder="0"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Max. cijena</label>
+          <input
+            type="number"
+            value={localFilters.priceMax}
+            onChange={(e) => setLocalFilters({...localFilters, priceMax: e.target.value})}
+            placeholder="9999"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
+          />
+        </div>
+      </div>
+      
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">Status zaliha</label>
+        <select
+          value={localFilters.status}
+          onChange={(e) => setLocalFilters({...localFilters, status: e.target.value})}
+          className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:border-yellow-500 focus:outline-none transition-colors"
+        >
+          <option value="">Svi statusi</option>
+          <option value="available">Dostupno</option>
+          <option value="low_stock">Niska zaliha</option>
+          <option value="out_of_stock">Nema na lageru</option>
+        </select>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Min. količina</label>
+          <input
+            type="number"
+            value={localFilters.quantityMin}
+            onChange={(e) => setLocalFilters({...localFilters, quantityMin: e.target.value})}
+            placeholder="0"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm text-gray-400 mb-2">Max. količina</label>
+          <input
+            type="number"
+            value={localFilters.quantityMax}
+            onChange={(e) => setLocalFilters({...localFilters, quantityMax: e.target.value})}
+            placeholder="999"
+            className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
+          />
+        </div>
+      </div>
+
+      <div className="pt-4 space-y-3">
+        {/* NOVO DUGME: Primijeni filtere */}
+        <button
+          onClick={applyFilters}
+          className="w-full px-4 py-2.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-all flex items-center justify-center gap-2 font-medium"
+        >
+          <Filter className="w-4 h-4" />
+          Filtriraj
+        </button>
+
+        <button
+          onClick={clearFilters}
+          disabled={!hasActiveFilters}
+          className="w-full px-4 py-2.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+        >
+          <X className="w-4 h-4" />
+          Očisti filtere
+        </button>
+        
+        {hasActiveFilters && (
+          <div className="text-xs text-center text-gray-400 bg-gray-900/50 py-2 rounded-lg">
+            Aktivni filteri
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-)
+  )
 
   if (loading) {
     return (
@@ -614,8 +653,7 @@ const getInventoryStatus = (productId: number) => {
       {/* Desktop Sidebar */}
       <div className={`hidden lg:block bg-gradient-to-br from-gray-800 to-gray-900 border-r border-yellow-500/30 overflow-y-auto transition-all duration-300 ${
         sidebarOpen ? 'w-80' : 'w-0'
-      }`}>
-        <div className={`sticky top-0 p-6 ${sidebarOpen ? 'block' : 'hidden'}`}>
+      }`}><div className={`sticky top-0 p-6 ${sidebarOpen ? 'block' : 'hidden'}`}>
           <div className="flex items-center justify-between gap-3 mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-yellow-500/20 rounded-lg">
@@ -659,7 +697,7 @@ const getInventoryStatus = (productId: number) => {
             <div className="flex items-center gap-2 lg:gap-4 w-full lg:w-auto">
               <button 
                 onClick={goBack}
-                className="flex items-center gap-2 px -3 lg:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
+                className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -692,17 +730,6 @@ const getInventoryStatus = (productId: number) => {
             </div>
             
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-              <div className="relative flex-1 sm:flex-initial">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Pretraži..."
-                  className="w-full sm:w-64 pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
-                />
-              </div>
-              
               <select
                 value={sortOption}
                 onChange={(e) => setSortOption(e.target.value)}
@@ -1087,7 +1114,7 @@ const getInventoryStatus = (productId: number) => {
                       onClick={() => setShowAddModal(false)}
                       className="p-2 hover:bg-gray-700/50 rounded-full transition-colors"
                     >
-                      <X className="w-5 h-5 text-gray-400" />
+                      <X className="w-5 h-5 h-5 text-gray-400" />
                     </button>
                   </div>
 
