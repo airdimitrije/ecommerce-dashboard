@@ -499,7 +499,11 @@ export default function ProductsPage() {
     )
   }
 
-  const FilterSidebar = () => (
+  const FilterSidebar = () => {
+  // Dodaj ref za input
+  const searchInputRef = React.useRef<HTMLInputElement>(null)
+
+  return (
     <div className="space-y-4">
       {/* Filter za pretragu po nazivu */}
       <div>
@@ -507,9 +511,12 @@ export default function ProductsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
+            ref={searchInputRef}
             type="text"
             value={localFilters.searchQuery}
-            onChange={(e) => setLocalFilters({...localFilters, searchQuery: e.target.value})}
+            onChange={(e) => {
+              setLocalFilters({...localFilters, searchQuery: e.target.value})
+            }}
             placeholder="Unesite naziv..."
             className="w-full pl-10 pr-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-colors"
           />
@@ -593,7 +600,7 @@ export default function ProductsPage() {
       </div>
 
       <div className="pt-4 space-y-3">
-        {/* NOVO DUGME: Primijeni filtere */}
+        {/* DUGME: Primijeni filtere */}
         <button
           onClick={applyFilters}
           className="w-full px-4 py-2.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg hover:bg-yellow-500/20 transition-all flex items-center justify-center gap-2 font-medium"
@@ -619,6 +626,7 @@ export default function ProductsPage() {
       </div>
     </div>
   )
+}
 
   if (loading) {
     return (
