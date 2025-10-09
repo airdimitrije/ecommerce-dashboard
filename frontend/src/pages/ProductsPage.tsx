@@ -605,8 +605,8 @@ export default function ProductsPage() {
       {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={() => setMobileSidebarOpen(false)}>
-          <div className="absolute left-0 top-0 bottom-0 w-80 bg-gradient-to-br from-gray-800 to-gray-900 border-r border-yellow-500/30 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 p-6">
+          <div className="absolute left-0 top-0 bottom-0 w-80 max-w-[85vw] bg-gradient-to-br from-gray-800 to-gray-900 border-r border-yellow-500/30 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
               <div className="flex items-center justify-between gap-3 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-yellow-500/20 rounded-lg">
@@ -627,29 +627,28 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Toggle Sidebar Button - Desktop */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="hidden lg:flex fixed left-0 top-1/2 -translate-y-1/2 z-30 bg-gradient-to-r from-yellow-500 to-amber-500 p-3 rounded-r-lg shadow-lg hover:shadow-yellow-500/50 transition-all"
-      >
-        {sidebarOpen ? (
-          <ChevronLeft className="w-5 h-5 text-black" />
-        ) : (
-          <ChevronRight className="w-5 h-5 text-black" />
-        )}
-      </button>
-
       <div className="flex-1 overflow-y-auto">
         <div className="p-4 lg:p-6 space-y-6 lg:space-y-8 max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-4 w-full lg:w-auto">
+            <div className="flex items-center gap-2 lg:gap-4 w-full lg:w-auto">
               <button 
                 onClick={goBack}
-                className="flex items-center gap-2 px-3 lg:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
+                className="flex items-center gap-2 px -3 lg:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden sm:inline">Dashboard</span>
               </button>
+
+              {/* Desktop Toggle Button - Now in header */}
+              <button 
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="hidden lg:flex items-center gap-2 px-3 lg:px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
+              >
+                {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                <span className="hidden xl:inline">Filteri</span>
+              </button>
+
+              {/* Mobile Filter Button */}
               <button 
                 onClick={() => setMobileSidebarOpen(true)}
                 className="lg:hidden flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-gray-300 hover:border-yellow-500/50 hover:text-yellow-400 transition-all"
@@ -657,6 +656,7 @@ export default function ProductsPage() {
                 <Menu className="w-4 h-4" />
                 <span className="hidden sm:inline">Filteri</span>
               </button>
+
               <div>
                 <h1 className="text-xl lg:text-3xl font-bold bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 bg-clip-text text-transparent">
                   Upravljanje proizvodima
