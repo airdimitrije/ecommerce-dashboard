@@ -156,16 +156,19 @@ CORS_ALLOW_METHODS = ["*"]
 # -----------------------------------------------------
 # ✅ REST FRAMEWORK CONFIG
 # -----------------------------------------------------
+# -----------------------------------------------------
+# ✅ REST FRAMEWORK CONFIG
+# -----------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
-    # 🔹 Koristi našu custom StandardPagination klasu iz shop.views
-    'DEFAULT_PAGINATION_CLASS': 'shop.views.StandardPagination',
-    'PAGE_SIZE': 8,  # Defaultna veličina stranice
+    'DEFAULT_PAGINATION_CLASS': 'shop.pagination.StandardPagination',  # ✅ sada koristi novi fajl
+    'PAGE_SIZE': 8,
 }
+
 
 
 # -----------------------------------------------------

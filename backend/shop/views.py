@@ -1,6 +1,5 @@
 from rest_framework import status, viewsets, filters
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import ProtectedError
 from .models import Category, Product, ProductImage, Inventory, Discount, Order
@@ -12,15 +11,7 @@ from .serializers import (
     DiscountSerializer,
     OrderSerializer
 )
-
-
-# -----------------------------
-# ✅ Standard Pagination
-# -----------------------------
-class StandardPagination(PageNumberPagination):
-    page_size = 8
-    page_size_query_param = "page_size"  # ✅ omogućava ?page_size=9999
-    max_page_size = 10000
+from .pagination import StandardPagination  # ✅ sada se importuje iz pagination.py
 
 
 # -----------------------------
@@ -45,8 +36,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "description"]
     filterset_fields = {
-        'category': ['exact'],
-        'price': ['gte', 'lte'],
+        "category": ["exact"],
+        "price": ["gte", "lte"],
     }
     ordering_fields = ["price", "name", "id", "category"]
     ordering = ["id"]
@@ -62,12 +53,12 @@ class ProductViewSet(viewsets.ModelViewSet):
         except ProtectedError:
             return Response(
                 {"error": "Ovaj proizvod ne može biti obrisan jer postoji u narudžbinama."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
             return Response(
                 {"error": f"Greška prilikom brisanja: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -89,8 +80,8 @@ class InventoryViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
-        'product': ['exact'],
-        'status': ['exact'],
+        "product": ["exact"],
+        "status": ["exact"],
     }
     ordering_fields = ["id", "quantity_in", "quantity_out"]
     ordering = ["id"]
@@ -114,7 +105,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
-        'status': ['exact'],
+        "status": ["exact"],
     }
     ordering_fields = ["id", "created_at", "total_price"]
     ordering = ["-created_at"]
