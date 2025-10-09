@@ -247,18 +247,22 @@ export default function ProductsPage() {
     setPriceVsStock(scatterData)
   }
 
-  const getInventoryStatus = (productId: number) => {
+  // ✅ Tačno računa količinu i status bez oslanjanja na bazni status
+const getInventoryStatus = (productId: number) => {
   const inv = inventory.find(i => i.product === productId)
   if (!inv) return { quantity: 0, status: 'N/A' }
 
+  // stvarna količina
   const quantity = Math.max(0, inv.quantity_in - inv.quantity_out)
 
+  // automatski izračun statusa
   let status = 'available'
   if (quantity === 0) status = 'out_of_stock'
   else if (quantity < 10) status = 'low_stock'
 
   return { quantity, status }
 }
+
 
 
   const filteredProducts = products.filter(product => {
@@ -753,7 +757,9 @@ export default function ProductsPage() {
                 <div>
                   <p className="text-xs lg:text-sm text-gray-400 mb-1">Nema</p>
                   <p className="text-xl lg:text-3xl font-bold text-red-400">
-                    {Array.isArray(inventory) ? inventory.filter(inv => inv.status === 'out_of_stock').length : 0}
+                    {Array.isArray(inventory)
+    ? inventory.filter(inv => (inv.quantity_in - inv.quantity_out) <= 0).length
+    : 0}
                   </p>
                 </div>
                 <div className="p-2 lg:p-3 bg-red-500/20 rounded-xl">
