@@ -46,11 +46,21 @@ class Inventory(models.Model):
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
-        related_name="shop_inventory"  # ✅ unique related_name to avoid clash with store.Inventory
+        related_name="shop_inventory"
     )
     quantity_in = models.IntegerField(default=0)
     quantity_out = models.IntegerField(default=0)
     status = models.CharField(max_length=20, default="available")
+
+    def save(self, *args, **kwargs):
+        quantity = self.quantity_in - self.quantity_out
+        if quantity <= 0:
+            self.status = "out_of_stock"
+        elif quantity < 10:
+            self.status = "low_stock"
+        else:
+            self.status = "available"
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.product.name} ({self.status})"
