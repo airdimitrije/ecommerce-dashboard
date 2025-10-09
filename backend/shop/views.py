@@ -19,8 +19,8 @@ from .serializers import (
 # -----------------------------
 class StandardPagination(PageNumberPagination):
     page_size = 8
-    page_size_query_param = "page_size"
-    max_page_size = 9999
+    page_size_query_param = "page_size"  # ✅ omogućava ?page_size=9999
+    max_page_size = 10000
 
 
 # -----------------------------
@@ -36,7 +36,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 # -----------------------------
-# ✅ Product ViewSet (sa sigurnim brisanjem)
+# ✅ Product ViewSet (sigurno brisanje)
 # -----------------------------
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all().order_by("id")
@@ -51,8 +51,10 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering_fields = ["price", "name", "id", "category"]
     ordering = ["id"]
 
-    # ✅ SIGURNO BRISANJE
     def destroy(self, request, *args, **kwargs):
+        """
+        ✅ Sigurno brisanje proizvoda — ne dozvoljava ako proizvod postoji u narudžbinama.
+        """
         try:
             instance = self.get_object()
             self.perform_destroy(instance)
