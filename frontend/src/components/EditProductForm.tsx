@@ -7,6 +7,8 @@ interface EditProductFormProps {
     name: string
     price: string
     category: number
+    sku?: string
+    description?: string
   }
   onSuccess: () => void
   onCancel: () => void
@@ -17,12 +19,14 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
     name: product.name,
     price: product.price,
     category: product.category,
+    sku: product.sku || "",
+    description: product.description || "",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -49,6 +53,7 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Naziv */}
       <div>
         <label className="block text-sm text-gray-400 mb-2">Naziv proizvoda</label>
         <input
@@ -57,9 +62,11 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.name}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
+          placeholder="Unesite naziv proizvoda"
         />
       </div>
 
+      {/* Cijena */}
       <div>
         <label className="block text-sm text-gray-400 mb-2">Cijena (€)</label>
         <input
@@ -68,9 +75,24 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.price}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
+          placeholder="Unesite cijenu"
         />
       </div>
 
+      {/* SKU */}
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">Šifra (SKU)</label>
+        <input
+          type="text"
+          name="sku"
+          value={formData.sku}
+          onChange={handleChange}
+          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
+          placeholder="Unesite SKU proizvoda"
+        />
+      </div>
+
+      {/* Kategorija */}
       <div>
         <label className="block text-sm text-gray-400 mb-2">Kategorija (ID)</label>
         <input
@@ -79,9 +101,23 @@ export default function EditProductForm({ product, onSuccess, onCancel }: EditPr
           value={formData.category}
           onChange={handleChange}
           className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white focus:border-yellow-400 outline-none"
+          placeholder="Unesite ID kategorije"
         />
       </div>
 
+      {/* Opis */}
+      <div>
+        <label className="block text-sm text-gray-400 mb-2">Opis</label>
+        <textarea
+          name="description"
+          value={formData.description}
+          onChange={handleChange}
+          className="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white h-24 resize-none focus:border-yellow-400 outline-none"
+          placeholder="Unesite opis proizvoda"
+        />
+      </div>
+
+      {/* Statusi i dugmad */}
       {error && <p className="text-red-400 text-sm">{error}</p>}
       {success && <p className="text-green-400 text-sm">✅ Proizvod uspješno ažuriran!</p>}
 
