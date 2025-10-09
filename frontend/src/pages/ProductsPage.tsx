@@ -248,11 +248,18 @@ export default function ProductsPage() {
   }
 
   const getInventoryStatus = (productId: number) => {
-    const inv = inventory.find(i => i.product === productId)
-    if (!inv) return { quantity: 0, status: 'N/A' }
-    const quantity = Math.max(0, inv.quantity_in - inv.quantity_out)
-    return { quantity, status: inv.status }
-  }
+  const inv = inventory.find(i => i.product === productId)
+  if (!inv) return { quantity: 0, status: 'N/A' }
+
+  const quantity = Math.max(0, inv.quantity_in - inv.quantity_out)
+
+  let status = 'available'
+  if (quantity === 0) status = 'out_of_stock'
+  else if (quantity < 10) status = 'low_stock'
+
+  return { quantity, status }
+}
+
 
   const filteredProducts = products.filter(product => {
     const invData = getInventoryStatus(product.id)
